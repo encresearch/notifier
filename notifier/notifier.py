@@ -1,44 +1,21 @@
 from flask import Flask
 from flask_mail import Mail, Message
 import datetime
+import json
 import psycopg2
+from databaseConnect import Database
 
 
-def getEmails():
-	
-	#Query to get all unique emails from the database
-	get_email_query = "SELECT DISTINCT email FROM emails"
-	
-	#Initializing connection variable to allow the finally statement to execute without throwing
-	#"UnboundLocalError: local variable 'connection' referenced before assignment"
-	connection = None
-	
-	#Attempting to connect to the database
-	try:
-		connection = psycopg2.connect(user = "postgres",
-									  password = "password",
-									  host = "127.0.0.1",
-									  port = "5432",
-									  database = "ENC_Earthquake_Email_List")
-									  
-		cursor = connection.cursor()
 
-		#Executing the query to get all email addresses
-		cursor.execute(get_email_query)
-		emailArray = cursor.fetchall()
+today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M"))
 
-	except (Exception, psycopg2.Error) as error :
-		emailArray = []
-		print ("Error while connecting to Email Database", error)
-	
-	finally:
-		if(connection):
-			cursor.close()
-			connection.close()
-			print("Email Database connection is closed")
-		
-		#Return the list of emails
-		return emailArray
+inspectorPackage = {
+					'topic': 'gas_sensor',
+					'location': 'NA-EAST',
+					'time_init': today,
+					'time_duration': 12
+				   }
+
 
 
 
@@ -61,6 +38,17 @@ app.config['MAIL_USE_SSL'] = True
 #Initializing Flask-mail
 mail = Mail(app)
 
+db = None
+
+while True:
+	db = Database()
+	
+	if db.connected == False:
+		print("Unable to connect: Trying again in 1s")
+		sleep(1)
+	else:
+		break
+
 
 @app.route('/<message>')
 
@@ -73,7 +61,9 @@ def hello_world(message):
 	
 		today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M"))
 		
-		emails = getEmails()
+		emails = db.getEmails(inspectorPackage)
+		
+		emailsSent = 0
 		
 		for email in emails:
 			
@@ -82,10 +72,10 @@ def hello_world(message):
 			address = email[0]
 			
 			#The message for the email is taken from the URL
-			messageToSend = message
+			messageToSend = f"{inspectorPackage['topic']} Anomaly: " + today + f"\nLocation: {inspectorPackage['location']}\nTime Detected: {inspectorPackage['time_init']}\nTime Duration: {inspectorPackage['time_duration']}"
 			
 			#The subject is taken from the current time
-			subject = "Warning: " + today
+			subject = f"{inspectorPackage['topic']} Anomaly: " + today
 			
 			#Forming the message
 			msg = Message(recipients=[address],
@@ -94,5 +84,6 @@ def hello_world(message):
 						  subject=subject)
 
 			conn.send(msg)
+			emailsSent += 1
 	
-	return "Email(s) Sent: " + today
+	return f"{str(emailsSent)} Email(s) Sent: " + today
