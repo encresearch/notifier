@@ -10,6 +10,7 @@ Notifier works by recieving JSON Objects in the following structure:
 ~~~
 {
   'topic': ____,
+  'anomaly_status', ____,
   'location': ____,
   'time_init: ____',
   'time_duration': ____
@@ -17,8 +18,9 @@ Notifier works by recieving JSON Objects in the following structure:
 ~~~
 With this object, Notifier queries a database containing subscribers (and the topics they are subscribed to), and sends an email to the subscribers of the respective topic specified in the JSON objecct. The other information in the JSON Object is included in the email.
 
-Notifier will recieve its data from the Inspector container (once it is operational) over MQTT.
+Notifier recieves these JSON objects from `Inspector`, which can be found here: https://github.com/encresearch/inspector
 
+Added flexability to the JSON Object structure, better email structure, and more data on anomalies will be future features in `Notifier` and `Inspector`
 
 ## Getting Started
 These instructions are to get notifier up and running in your local development environment.
