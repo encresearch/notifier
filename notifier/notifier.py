@@ -6,19 +6,12 @@ import psycopg2
 from databaseConnect import Database
 from flask_mqtt import Mqtt
 
-
+#Global Variables (To Change to env variables)
 HOST = "iot.eclipse.org"
 PORT = 1883
 KEEPALIVE = 60
 topic =	 "data/anomalyDetected"
 client_id = "/Notifier"
-
-
-
-
-
-
-
 
 #Starting Flask Application
 app = Flask(__name__)
@@ -46,8 +39,8 @@ app.config['MQTT_PASSWORD'] = ''
 app.config['MQTT_KEEPALIVE'] = 60
 app.config['MQTT_TLS_ENABLED'] = False
 
+#Connecting to Database
 db = None
-
 while True:
 	db = Database()
 
