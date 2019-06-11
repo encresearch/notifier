@@ -4,7 +4,32 @@ import datetime
 import json
 import psycopg2
 from databaseConnect import Database
+import paho.mqtt.client as mqtt
 
+
+HOST = "iot.eclipse.org"
+PORT = 1883
+KEEPALIVE = 60
+topic = "data/anomaly"
+client_id = "/Notifier"
+
+def on_message(client, userdata, msg):
+    topic = msg.topic
+    m_decode = str(msg.payload.decode("utf-8", "ignore"))
+    m_in = json.loads(m_decode)
+    print("\n",m_in,"\n")
+
+def on_log(client, userdata, level, buf):
+    import time
+    print(str(time.time()) + " log: " + buf)
+
+def on_connect(client, userdata, flags, rc):
+    if rc==0:
+        print(f"Connected OK: {client}")
+    else:
+        print(f"Bad Connection Returned (Code: {rc})")
+def on_disconnect(client, userdata, rc):
+    print("Client Disconnected")
 
 
 today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M"))
@@ -42,7 +67,7 @@ db = None
 
 while True:
 	db = Database()
-	
+
 	if db.connected == False:
 		print("Unable to connect: Trying again in 1s")
 		sleep(1)
@@ -54,29 +79,29 @@ while True:
 
 
 def hello_world(message):
-	
-	
+
+
 	#Individual Emails for each contact
 	with mail.connect() as conn:
-	
-		today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M"))
-		
+
+		today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M:%S.%f"))
+
 		emails = db.getEmails(inspectorPackage)
-		
+
 		emailsSent = 0
-		
+
 		for email in emails:
-			
+
 			#email is storing a one-element-long tuple. To isolated the string inside, address is
 			#being assigned the one element in the tuple
 			address = email[0]
-			
+
 			#The message for the email is taken from the URL
 			messageToSend = f"{inspectorPackage['topic']} Anomaly: " + today + f"\nLocation: {inspectorPackage['location']}\nTime Detected: {inspectorPackage['time_init']}\nTime Duration: {inspectorPackage['time_duration']}"
-			
+
 			#The subject is taken from the current time
 			subject = f"{inspectorPackage['topic']} Anomaly: " + today
-			
+
 			#Forming the message
 			msg = Message(recipients=[address],
 						  body=messageToSend,
@@ -85,5 +110,5 @@ def hello_world(message):
 
 			conn.send(msg)
 			emailsSent += 1
-	
+
 	return f"{str(emailsSent)} Email(s) Sent: " + today
