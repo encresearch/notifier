@@ -109,15 +109,16 @@ def handle_mqtt_message(client, userdata, message):
 
 			#The message for the email is taken from the URL
 			topic = inspectorPackageDict['topic']
+			anomaly_status = inspectorPackageDict['anomaly_status']
 			location = inspectorPackageDict['location']
 			time_init = inspectorPackageDict['time_init']
 			duration = str(inspectorPackageDict['time_duration'])
 
-			messageToSend = f"{topic} Anomaly:\nLocation: {location}\nTime Detected: {time_init}\nDuration: {duration}"
+			messageToSend = f"{topic} Anomaly {anomaly_status}:\nLocation: {location}\nTime Detected: {time_init}\nDuration: {duration}"
 
 
 			#The subject is taken from the current time
-			subject = f"{topic} Anomaly: " + today
+			subject = f"{topic} Anomaly {anomaly_status}: " + today
 
 			#Forming the message
 			msg = Message(recipients=[address],
