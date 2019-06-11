@@ -4,42 +4,17 @@ import datetime
 import json
 import psycopg2
 from databaseConnect import Database
-import paho.mqtt.client as mqtt
+from flask_mqtt import Mqtt
 
 
 HOST = "iot.eclipse.org"
 PORT = 1883
 KEEPALIVE = 60
-topic = "data/anomaly"
+topic =	 "data/anomalyDetected"
 client_id = "/Notifier"
 
-def on_message(client, userdata, msg):
-    topic = msg.topic
-    m_decode = str(msg.payload.decode("utf-8", "ignore"))
-    m_in = json.loads(m_decode)
-    print("\n",m_in,"\n")
-
-def on_log(client, userdata, level, buf):
-    import time
-    print(str(time.time()) + " log: " + buf)
-
-def on_connect(client, userdata, flags, rc):
-    if rc==0:
-        print(f"Connected OK: {client}")
-    else:
-        print(f"Bad Connection Returned (Code: {rc})")
-def on_disconnect(client, userdata, rc):
-    print("Client Disconnected")
 
 
-today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M"))
-
-inspectorPackage = {
-					'topic': 'gas_sensor',
-					'location': 'NA-EAST',
-					'time_init': today,
-					'time_duration': 12
-				   }
 
 
 
@@ -53,6 +28,8 @@ from_email = "encearthquakenotification@gmail.com"
 from_email_password = "kohyomumdlonqmtq"
 
 #Configuring Flask
+app.config['SECRET'] = '260892c601c030dbc35778a9184e127d'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['MAIL_SERVER']='smtp.gmail.com'
 app.config['MAIL_PORT'] = 465
 app.config['MAIL_USERNAME'] = from_email
@@ -60,8 +37,14 @@ app.config['MAIL_PASSWORD'] = from_email_password
 app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USE_SSL'] = True
 
-#Initializing Flask-mail
-mail = Mail(app)
+
+#Configuring Flask-mqtt
+app.config['MQTT_BROKER_URL'] = 'iot.eclipse.org'
+app.config['MQTT_BROKER_PORT'] = 1883
+app.config['MQTT_USERNAME'] = ''
+app.config['MQTT_PASSWORD'] = ''
+app.config['MQTT_KEEPALIVE'] = 60
+app.config['MQTT_TLS_ENABLED'] = False
 
 db = None
 
@@ -75,18 +58,46 @@ while True:
 		break
 
 
-@app.route('/<message>')
+#Initializing Flask-mail
+mail = Mail(app)
+mqtt = Mqtt(app)
 
 
-def hello_world(message):
+
+
+@app.route('/')
+def index():
+	return None
+
+@mqtt.on_connect()
+def handle_connect(client, userdata, flags, rc):
+	mqtt.subscribe(topic)
+
+@mqtt.on_message()
+def handle_mqtt_message(client, userdata, message):
+	data = dict(
+		topic=message.topic,
+		payload=message.payload.decode()
+	)
+
+	print(data['payload'])
+
+	inspectorPackageJSON = data['payload']
+
+	inspectorPackageDict = json.loads(inspectorPackageJSON)
+
+
 
 
 	#Individual Emails for each contact
+	#print("EmailTime")
 	with mail.connect() as conn:
 
-		today= str(datetime.datetime.now().strftime("%m-%d-%y %H:%M:%S.%f"))
 
-		emails = db.getEmails(inspectorPackage)
+		today = inspectorPackageDict['time_init']
+
+
+		emails = db.getEmails(inspectorPackageDict['topic'])
 
 		emailsSent = 0
 
@@ -97,10 +108,16 @@ def hello_world(message):
 			address = email[0]
 
 			#The message for the email is taken from the URL
-			messageToSend = f"{inspectorPackage['topic']} Anomaly: " + today + f"\nLocation: {inspectorPackage['location']}\nTime Detected: {inspectorPackage['time_init']}\nTime Duration: {inspectorPackage['time_duration']}"
+			topic = inspectorPackageDict['topic']
+			location = inspectorPackageDict['location']
+			time_init = inspectorPackageDict['time_init']
+			duration = str(inspectorPackageDict['time_duration'])
+
+			messageToSend = f"{topic} Anomaly:\nLocation: {location}\nTime Detected: {time_init}\nDuration: {duration}"
+
 
 			#The subject is taken from the current time
-			subject = f"{inspectorPackage['topic']} Anomaly: " + today
+			subject = f"{topic} Anomaly: " + today
 
 			#Forming the message
 			msg = Message(recipients=[address],
@@ -108,7 +125,14 @@ def hello_world(message):
 						  sender = from_email,
 						  subject=subject)
 
-			conn.send(msg)
+			try:
+				with app.app_context():
+					conn.send(msg)
+			except Exception as err:
+				print(err)
 			emailsSent += 1
 
-	return f"{str(emailsSent)} Email(s) Sent: " + today
+	print(f"{str(emailsSent)} Email(s) Sent: " + today)
+
+# if __name__ == '__main__':
+#     app.run(host='0.0.0.0', port=5000, use_reloader=False, debug=True)
