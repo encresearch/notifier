@@ -2,8 +2,7 @@ from flask import Flask
 from flask_mail import Mail, Message
 import datetime
 import json
-import psycopg2
-from databaseConnect import Database
+
 from flask_mqtt import Mqtt
 
 #Global Variables (To Change to env variables)
@@ -40,16 +39,8 @@ app.config['MQTT_KEEPALIVE'] = 60
 app.config['MQTT_TLS_ENABLED'] = False
 
 #Connecting to Database
-db = None
-while True:
-	db = Database()
 
-	if db.connected == False:
-		print("Unable to connect: Trying again in 1s")
-		sleep(1)
-	else:
-		break
-
+emailArray = ['gstrenge01@gmail.com']
 
 #Initializing Flask-mail
 mail = Mail(app)
@@ -89,8 +80,13 @@ def handle_mqtt_message(client, userdata, message):
 
 		today = inspectorPackageDict['time_init']
 
+		topicNum = 0
 		for topic in inspectorPackageDict['topic']:
-			emails = db.getEmails(topic)
+
+			if topicNum <2:
+				topicNum+= 1
+				continue
+			emails = emailArray
 
 			emailsSent = 0
 
@@ -98,7 +94,7 @@ def handle_mqtt_message(client, userdata, message):
 
 				#email is storing a one-element-long tuple. To isolated the string inside, address is
 				#being assigned the one element in the tuple
-				address = email[0]
+				address = email
 
 				#The message for the email is taken from the URL
 				topic = topic
