@@ -55,7 +55,7 @@ def index():
 
 @mqtt.on_connect()
 def handle_connect(client, userdata, flags, rc):
-	mqtt.subscribe(topic)
+	mqtt.subscribe(topic, qos=2)
 
 @mqtt.on_message()
 def handle_mqtt_message(client, userdata, message):
